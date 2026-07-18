@@ -130,7 +130,22 @@ public class GuiConfig extends ConfigurationFile {
             final ConfigurationSection section = getConfig().getConfigurationSection(key);
             if (section == null) return null;
 
-            final StackBuilder builder = StackBuilder.create(XMaterial.valueOf(section.getString("material")))
+            String materialName = section.getString("material");
+            XMaterial xMaterial = XMaterial.matchXMaterial(materialName).orElse(null);
+            if (xMaterial == null || !xMaterial.isSupported()) {
+                // Fallback: try direct Material name for newer versions not yet in XMaterial
+                try {
+                    org.bukkit.Material mat = org.bukkit.Material.getMaterial(materialName.toUpperCase(java.util.Locale.ENGLISH));
+                    if (mat != null) {
+                        xMaterial = XMaterial.matchXMaterial(mat);
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (xMaterial == null || !xMaterial.isSupported()) {
+                xMaterial = XMaterial.PAPER; // Default fallback material
+            }
+
+            final StackBuilder builder = StackBuilder.create(xMaterial)
                     .name(section.getString("name"))
                     .lore(section.getString("lore"));
 

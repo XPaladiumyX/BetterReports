@@ -29,8 +29,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SpawnEggMeta;
-import org.bukkit.potion.Potion;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -1578,7 +1576,74 @@ public enum XMaterial {
     ZOMBIE_SPAWN_EGG(54, "MONSTER_EGG"),
     ZOMBIE_VILLAGER_SPAWN_EGG(27, "MONSTER_EGG"),
     ZOMBIE_WALL_HEAD(2, "SKULL", "SKULL_ITEM"),
-    ZOMBIFIED_PIGLIN_SPAWN_EGG(57, "MONSTER_EGG", "ZOMBIE_PIGMAN_SPAWN_EGG");
+    ZOMBIFIED_PIGLIN_SPAWN_EGG(57, "MONSTER_EGG", "ZOMBIE_PIGMAN_SPAWN_EGG"),
+
+    // 1.21 (Tricky Trials) Materials
+    TRIAL_SPAWNER,
+    OMINOUS_TRIAL_SPAWNER,
+    VAULT,
+    OMINOUS_VAULT,
+    HEAVY_CORE,
+    CRAFTER,
+    WIND_CHARGE,
+    MACE,
+    BREEZE_ROD,
+    BREEZE_SPAWN_EGG,
+    OMINOUS_BOTTLE,
+    TUFF_SLAB,
+    TUFF_STAIRS,
+    TUFF_WALL,
+    POLISHED_TUFF,
+    POLISHED_TUFF_SLAB,
+    POLISHED_TUFF_STAIRS,
+    POLISHED_TUFF_WALL,
+    CHISELED_TUFF,
+    CHISELED_POLISHED_TUFF,
+    TUFF_BRICKS,
+    TUFF_BRICK_SLAB,
+    TUFF_BRICK_STAIRS,
+    TUFF_BRICK_WALL,
+    CHISELED_TUFF_BRICKS,
+    COPPER_BULB,
+    COPPER_GRATE,
+    COPPER_DOOR,
+    COPPER_TRAPDOOR,
+    EXPOSED_COPPER_BULB,
+    EXPOSED_COPPER_GRATE,
+    EXPOSED_COPPER_DOOR,
+    EXPOSED_COPPER_TRAPDOOR,
+    WEATHERED_COPPER_BULB,
+    WEATHERED_COPPER_GRATE,
+    WEATHERED_COPPER_DOOR,
+    WEATHERED_COPPER_TRAPDOOR,
+    OXIDIZED_COPPER_BULB,
+    OXIDIZED_COPPER_GRATE,
+    OXIDIZED_COPPER_DOOR,
+    OXIDIZED_COPPER_TRAPDOOR,
+    WAXED_COPPER_BULB,
+    WAXED_COPPER_GRATE,
+    WAXED_COPPER_DOOR,
+    WAXED_COPPER_TRAPDOOR,
+    WAXED_EXPOSED_COPPER_BULB,
+    WAXED_EXPOSED_COPPER_GRATE,
+    WAXED_EXPOSED_COPPER_DOOR,
+    WAXED_EXPOSED_COPPER_TRAPDOOR,
+    WAXED_WEATHERED_COPPER_BULB,
+    WAXED_WEATHERED_COPPER_GRATE,
+    WAXED_WEATHERED_COPPER_DOOR,
+    WAXED_WEATHERED_COPPER_TRAPDOOR,
+    WAXED_OXIDIZED_COPPER_BULB,
+    WAXED_OXIDIZED_COPPER_GRATE,
+    WAXED_OXIDIZED_COPPER_DOOR,
+    WAXED_OXIDIZED_COPPER_TRAPDOOR,
+    CHISELED_COPPER,
+    EXPOSED_CHISELED_COPPER,
+    WEATHERED_CHISELED_COPPER,
+    OXIDIZED_CHISELED_COPPER,
+    WAXED_CHISELED_COPPER,
+    WAXED_EXPOSED_CHISELED_COPPER,
+    WAXED_WEATHERED_CHISELED_COPPER,
+    WAXED_OXIDIZED_CHISELED_COPPER;
 
 
     /**
@@ -1801,7 +1866,23 @@ public enum XMaterial {
         if (name == null || name.isEmpty())
             throw new IllegalArgumentException("Cannot match a material with null or empty material name");
         Optional<XMaterial> oldMatch = matchXMaterialWithData(name);
-        return oldMatch.isPresent() ? oldMatch : matchDefinedXMaterial(format(name), UNKNOWN_DATA_VALUE);
+        if (oldMatch.isPresent()) return oldMatch;
+        Optional<XMaterial> definedMatch = matchDefinedXMaterial(format(name), UNKNOWN_DATA_VALUE);
+        if (definedMatch.isPresent()) return definedMatch;
+
+        // Fallback: try matching directly against the server's Material enum for
+        // materials that exist in newer versions but aren't in the XMaterial enum yet.
+        String formatted = format(name);
+        Material directMaterial = Material.getMaterial(formatted);
+        if (directMaterial != null) {
+            // Find if any existing XMaterial maps to this material
+            for (XMaterial xmat : VALUES) {
+                if (xmat.material == directMaterial) return Optional.of(xmat);
+            }
+            // Material exists in server but not mapped by any XMaterial - still return empty
+            // since we can't create new enum values at runtime
+        }
+        return Optional.empty();
     }
 
     /**
@@ -1836,41 +1917,18 @@ public enum XMaterial {
         String material = item.getType().name();
 
         // 1.13+ doesn't use data values at all.
-        // Maps are given different data values for different parts of the map also some plugins use negative values for custom images.
-        // Items that have durability, such as armor and tools don't use the data value to distinguish their material.
-        byte data = (byte) (Data.ISFLAT || material.equals("MAP") || item.getType().getMaxDurability() > 0 ? 0 : item.getDurability());
-
-        // Versions 1.9-1.12 didn't really use the items data value.
-        if (supports(9) && !supports(13) && item.hasItemMeta() && material.equals("MONSTER_EGG")) {
-            ItemMeta meta = item.getItemMeta();
-            if (meta instanceof SpawnEggMeta) {
-                SpawnEggMeta egg = (SpawnEggMeta) meta;
-                material = egg.getSpawnedType().name() + "_SPAWN_EGG";
-            }
-        }
-
-        // Potions used the items data value to store
-        // information about the type of potion in 1.8
-        if (!supports(9) && material.endsWith("ION")) {
-            // There's also 16000+ data value technique, but this is more reliable.
-            return Potion.fromItemStack(item).isSplash() ? SPLASH_POTION : POTION;
-        }
+        byte data = 0;
 
         // Refer to the enum for info.
         // Currently, these are the only materials with a non-zero data value
         // that has been renamed after the flattening update.
         // If this happens to more materials in the future, I might have to change the system.
         if (supports(13) && !supports(14)) {
-            // https://hub.spigotmc.org/stash/projects/SPIGOT/repos/bukkit/diff/src/main/java/org/bukkit/Material.java?until=67d908a9830c71267ee740f5bddd728ce9c64cc7
             if (material.equals("CACTUS_GREEN")) return GREEN_DYE;
             if (material.equals("ROSE_RED")) return RED_DYE;
             if (material.equals("DANDELION_YELLOW")) return YELLOW_DYE;
         }
 
-        // Check FILLED_MAP enum for more info.
-        // if (!Data.ISFLAT && item.hasItemMeta() && item.getItemMeta() instanceof org.bukkit.inventory.meta.MapMeta) return FILLED_MAP;
-
-        // No orElseThrow, I don't want to deal with Java's final variable bullshit.
         Optional<XMaterial> result = matchDefinedXMaterial(material, data);
         if (result.isPresent()) return result.get();
         throw new IllegalArgumentException("Unsupported material from item: " + material + " (" + data + ')');
@@ -2316,10 +2374,15 @@ public enum XMaterial {
 
         static { // This needs to be right below VERSION because of initialization order.
             String version = Bukkit.getVersion();
-            Matcher matcher = Pattern.compile("MC: \\d\\.(\\d+)").matcher(version);
+            Matcher matcher = Pattern.compile("MC: (\\d+)\\.(\\d+)").matcher(version);
 
-            if (matcher.find()) VERSION = Integer.parseInt(matcher.group(1));
-            else throw new IllegalArgumentException("Failed to parse server version from: " + version);
+            if (matcher.find()) {
+                int first = Integer.parseInt(matcher.group(1));
+                int second = Integer.parseInt(matcher.group(2));
+                // Old format: MC: 1.X.Y -> use X (e.g. MC: 1.20.4 -> 20)
+                // New format: MC: X.Y   -> use X (e.g. MC: 26.1  -> 26)
+                VERSION = (first == 1) ? second : first;
+            } else throw new IllegalArgumentException("Failed to parse server version from: " + version);
         }
 
         /**

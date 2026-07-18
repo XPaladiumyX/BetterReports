@@ -28,6 +28,8 @@ import dev.austech.betterreports.util.xseries.XMaterial;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.md_5.bungee.api.ChatColor;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -36,6 +38,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -113,15 +116,34 @@ public class StackBuilder {
         return this;
     }
 
+    private static Enchantment getGlowEnchantment() {
+        // Try multiple approaches for cross-version compatibility
+        try {
+            Enchantment ench = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("luck_of_the_sea"));
+            if (ench != null) return ench;
+        } catch (Exception ignored) {}
+        try {
+            Enchantment ench = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("luck"));
+            if (ench != null) return ench;
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     public StackBuilder glow() {
-        enchant(Enchantment.LUCK, 1);
-        applyMeta(meta -> meta.addItemFlags(ItemFlag.HIDE_ENCHANTS));
+        Enchantment ench = getGlowEnchantment();
+        if (ench != null) {
+            enchant(ench, 1);
+            applyMeta(meta -> meta.addItemFlags(ItemFlag.HIDE_ENCHANTS));
+        }
         return this;
     }
 
     public StackBuilder removeGlow() {
-        unEnchant(Enchantment.LUCK);
-        applyMeta(meta -> meta.removeItemFlags(ItemFlag.HIDE_ENCHANTS));
+        Enchantment ench = getGlowEnchantment();
+        if (ench != null) {
+            unEnchant(ench);
+            applyMeta(meta -> meta.removeItemFlags(ItemFlag.HIDE_ENCHANTS));
+        }
         return this;
     }
 

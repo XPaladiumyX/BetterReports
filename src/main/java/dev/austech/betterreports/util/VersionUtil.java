@@ -33,16 +33,34 @@ public class VersionUtil {
     private V serverVersion = null;
 
     public String getPackageVersion() {
-        final String packageName = Bukkit.getServer().getClass().getPackage().getName(); // CraftServer
-        return packageName.substring(23);
+        try {
+            final String packageName = Bukkit.getServer().getClass().getPackage().getName();
+            String version = packageName.substring(packageName.lastIndexOf('.') + 1);
+            return version;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     public V getVersion() {
         if (serverVersion == null) {
-            String version = Bukkit.getServer().getBukkitVersion();
-            version = version.split("-")[0];
-            String minorVersion = version.split("\\.")[1];
-            serverVersion = V.parse(Integer.parseInt(minorVersion));
+            try {
+                String bukkitVersion = Bukkit.getServer().getBukkitVersion();
+                bukkitVersion = bukkitVersion.split("-")[0];
+                String[] parts = bukkitVersion.split("\\.");
+
+                int majorVersion;
+                // Old format: "1.X.Y" -> X is the minor version
+                // New format: "X.Y"   -> X is the major version
+                if (parts.length >= 3 && "1".equals(parts[0])) {
+                    majorVersion = Integer.parseInt(parts[1]);
+                } else {
+                    majorVersion = Integer.parseInt(parts[0]);
+                }
+                serverVersion = V.parse(majorVersion);
+            } catch (Exception e) {
+                serverVersion = V.UNKNOWN;
+            }
         }
         return serverVersion;
     }
@@ -65,6 +83,10 @@ public class VersionUtil {
         V1_20(20),
         V1_21(21),
         V1_22(22),
+        V1_23(23),
+        V1_24(24),
+        V1_25(25),
+        V1_26(26),
 
         UNKNOWN(0);
 
@@ -88,6 +110,7 @@ public class VersionUtil {
 
         @Override
         public String toString() {
+            if (this.packageVersion >= 26) return this.packageVersion + ".x";
             return "1." + this.packageVersion;
         }
     }
